@@ -54,6 +54,10 @@ the line the rule counts are the same line.
 crates standing on it and the wall round it in a single grey is a yard where
 nothing reads as anything.
 
+**Being caught says so.** The screen reddens and fades over a moment. Not
+opaque, and under the meter rather than over it: being unable to see the yard is
+a second punishment for one mistake, and so is losing the thing you were reading.
+
 **Nothing chases you.** The lights are the only opposition, and they do not
 react. They sweep the same way whether you are there or not, so learning them is
 the game.
@@ -72,6 +76,11 @@ the game.
 - Light fills the meter and the dark empties it. — `caught::tests::light_fills_it_and_dark_empties_it`
 - It empties slower than it fills. — `caught::tests::it_empties_slower_than_it_fills`
 - Full sends you back to the near side. — `caught::tests::full_sends_you_back`
+- Being caught reddens the screen. — `caught::tests::being_caught_reddens_the_screen`
+- The red fades, and stops. — `caught::tests::the_red_fades_and_stops`
+- Being caught again starts it over. — `caught::tests::being_caught_again_starts_it_over`
+- You can still see the yard through it. — `caught::tests::you_can_still_see_the_yard_through_it`
+- It never goes past clear or past red. — `caught::tests::it_never_goes_past_clear_or_past_red`
 - It never goes below empty or above full. — `caught::tests::it_stays_between_empty_and_full`
 - Cover stops you walking as well as it stops the light. — `yard::tests::cover_is_solid_both_ways`
 - A crate stops you, and you slide along it. — `walker::tests::a_crate_stops_you`

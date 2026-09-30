@@ -14,6 +14,42 @@ pub const FILLS_IN: f32 = 1.6;
 /// route and there is no decision in it.
 pub const EMPTIES_IN: f32 = 4.0;
 
+/// How long the screen stays red after you are caught.
+///
+/// Short. A tint that lingers reads as a state you are in; a flash that is gone
+/// before you have finished flinching reads as a thing that happened.
+pub const FLASH_FOR: f32 = 0.3;
+
+/// How red it goes at its reddest. Not opaque, because being unable to see the
+/// yard is a second punishment for one mistake.
+pub const FLASH_MOST: f32 = 0.5;
+
+/// The red over the screen, fading.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Flash {
+    left: f32,
+}
+
+impl Flash {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Being caught, which starts it over however much was left.
+    pub fn start(&mut self) {
+        self.left = FLASH_FOR;
+    }
+
+    pub fn fade(&mut self, dt: f32) {
+        self.left = (self.left - dt).max(0.0);
+    }
+
+    /// How opaque the red is now, from nothing to `FLASH_MOST`.
+    pub fn alpha(&self) -> f32 {
+        FLASH_MOST * (self.left / FLASH_FOR).clamp(0.0, 1.0)
+    }
+}
+
 /// How much of it is filled, from nothing to caught.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Meter {
@@ -58,6 +94,67 @@ impl Meter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn being_caught_reddens_the_screen() {
+        let mut flash = Flash::new();
+        assert_eq!(flash.alpha(), 0.0, "red before anything happened");
+
+        flash.start();
+        assert!(flash.alpha() > 0.0);
+    }
+
+    #[test]
+    fn the_red_fades_and_stops() {
+        let mut flash = Flash::new();
+        flash.start();
+
+        // a step past the whole of it, because ten tenths of a float is not
+        // reliably the whole of it
+        let mut before = flash.alpha();
+        for _ in 0..11 {
+            flash.fade(FLASH_FOR / 10.0);
+            assert!(flash.alpha() <= before, "it got redder as it faded");
+            before = flash.alpha();
+        }
+
+        assert_eq!(flash.alpha(), 0.0, "it never finished");
+    }
+
+    #[test]
+    fn it_never_goes_past_clear_or_past_red() {
+        let mut flash = Flash::new();
+        flash.start();
+
+        for _ in 0..200 {
+            flash.fade(0.1);
+            assert!((0.0..=FLASH_MOST).contains(&flash.alpha()));
+        }
+    }
+
+    #[test]
+    fn being_caught_again_starts_it_over() {
+        let mut flash = Flash::new();
+        flash.start();
+        flash.fade(FLASH_FOR * 0.8);
+        let dim = flash.alpha();
+
+        flash.start();
+
+        assert!(
+            flash.alpha() > dim,
+            "the second catch was dimmer than the first"
+        );
+    }
+
+    #[test]
+    fn you_can_still_see_the_yard_through_it() {
+        // being unable to see is a second punishment for one mistake
+        let mut flash = Flash::new();
+        flash.start();
+
+        assert!(flash.alpha() < 1.0, "it is opaque at {}", flash.alpha());
+    }
 
     #[test]
     fn light_fills_it_and_dark_empties_it() {

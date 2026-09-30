@@ -14,7 +14,7 @@ use blitzkit::Game;
 use glam::{vec2, vec4, Vec2, Vec3};
 
 use crate::beams::{self, Beam};
-use crate::caught::Meter;
+use crate::caught::{Flash, Meter};
 use crate::seen;
 use crate::walker::Walker;
 use crate::wires::{self, Wire};
@@ -35,6 +35,14 @@ const FINISH: glam::Vec4 = vec4(2.4, 5.6, 3.0, 1.0);
 /// The wires, glowing the same way and in the one colour that says stop.
 const WIRE: glam::Vec4 = vec4(7.0, 1.2, 1.4, 1.0);
 
+/// The red over everything when you are caught.
+///
+/// Near full brightness, because alpha blending over a dark yard gives you the
+/// colour times the alpha and nothing else: a dark red at half alpha came out
+/// at a tenth of full and read as a block sitting in the corner rather than as
+/// a flash.
+const FLASH: Vec3 = glam::vec3(1.0, 0.13, 0.12);
+
 /// How much light there is with nothing lighting it. Low: the beams are the
 /// scene, and a yard you can read in the dark has no beams worth avoiding.
 const AMBIENT: f32 = 0.10;
@@ -52,6 +60,7 @@ pub struct SweepGame {
     solid: Vec<Aabb>,
     wires: Vec<Wire>,
     meter: Meter,
+    flash: Flash,
     across: bool,
     ground: Option<MeshId>,
     crates: Option<MeshId>,
@@ -77,6 +86,7 @@ impl SweepGame {
             solid: yard::solid(),
             wires: wires::all(),
             meter: Meter::new(),
+            flash: Flash::new(),
             across: false,
             ground: None,
             crates: None,
@@ -123,6 +133,7 @@ impl SweepGame {
         self.you = Walker::at(yard::start());
         self.you.yaw = yaw;
         self.meter.empty();
+        self.flash.start();
     }
 
     fn wish(&self) -> Vec3 {
@@ -229,6 +240,8 @@ impl Game for SweepGame {
             self.across = yard::is_across(self.you.position);
         }
 
+        self.flash.fade(dt);
+
         self.readout.text = if self.across {
             String::from("across")
         } else {
@@ -243,23 +256,40 @@ impl Game for SweepGame {
         text_renderer.render_texts.push(self.readout.clone());
         text_renderer.render_texts.push(self.controls.clone());
 
-        // the meter, along the bottom
-        if !self.across {
-            let at = vec2(
-                (self.width - METER_WIDE) * 0.5,
-                self.height - METER_TALL - METER_MARGIN,
-            );
+        // the red goes over the yard but under the meter: it is there to say
+        // what happened, not to take away the thing you were reading
+        // a quad's position is its middle, not its corner
+        if self.flash.alpha() > 0.0 {
+            let whole = vec2(self.width, self.height);
 
             geometry.push_quad(&Quad::colored(
-                at,
+                whole * 0.5,
+                whole,
+                vec4(FLASH.x, FLASH.y, FLASH.z, self.flash.alpha()),
+            ));
+        }
+
+        // the meter, along the bottom
+        if !self.across {
+            let middle = self.width * 0.5;
+            let up = self.height - METER_TALL - METER_MARGIN;
+
+            geometry.push_quad(&Quad::colored(
+                vec2(middle, up),
                 vec2(METER_WIDE, METER_TALL),
                 METER_EMPTY,
             ));
-            geometry.push_quad(&Quad::colored(
-                at,
-                vec2(METER_WIDE * self.meter.filled(), METER_TALL),
-                METER_FULL,
-            ));
+
+            // the part that fills grows from the left edge of the track, so
+            // its middle moves as it fills
+            let filled = METER_WIDE * self.meter.filled();
+            if filled > 0.0 {
+                geometry.push_quad(&Quad::colored(
+                    vec2(middle - METER_WIDE * 0.5 + filled * 0.5, up),
+                    vec2(filled, METER_TALL),
+                    METER_FULL,
+                ));
+            }
         }
     }
 
