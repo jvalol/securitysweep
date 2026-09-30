@@ -17,6 +17,7 @@ use crate::beams::{self, Beam};
 use crate::caught::Meter;
 use crate::seen;
 use crate::walker::Walker;
+use crate::wires::{self, Wire};
 use crate::yard;
 
 /// Four colours rather than one. A yard where the floor, the things standing on
@@ -30,6 +31,9 @@ const WALL: glam::Vec4 = vec4(0.20, 0.20, 0.23, 1.0);
 /// ambient term, so a large one glows without a light on it, which is how it
 /// stays visible from the near side of a dark yard.
 const FINISH: glam::Vec4 = vec4(2.4, 5.6, 3.0, 1.0);
+
+/// The wires, glowing the same way and in the one colour that says stop.
+const WIRE: glam::Vec4 = vec4(7.0, 1.2, 1.4, 1.0);
 
 /// How much light there is with nothing lighting it. Low: the beams are the
 /// scene, and a yard you can read in the dark has no beams worth avoiding.
@@ -46,12 +50,14 @@ pub struct SweepGame {
     you: Walker,
     beams: Vec<Beam>,
     solid: Vec<Aabb>,
+    wires: Vec<Wire>,
     meter: Meter,
     across: bool,
     ground: Option<MeshId>,
     crates: Option<MeshId>,
     wall: Option<MeshId>,
     finish: Option<MeshId>,
+    wire_mesh: Option<MeshId>,
     /// forward, back, left, right, turn left, turn right
     held: [bool; 6],
     locked: bool,
@@ -69,12 +75,14 @@ impl SweepGame {
             you: Walker::at(yard::start()),
             beams: beams::all(),
             solid: yard::solid(),
+            wires: wires::all(),
             meter: Meter::new(),
             across: false,
             ground: None,
             crates: None,
             wall: None,
             finish: None,
+            wire_mesh: None,
             held: [false; 6],
             locked: false,
             wants_lock: false,
@@ -150,6 +158,7 @@ impl Game for SweepGame {
         self.crates = Some(renderer.add_mesh(&yard::crates_mesh()));
         self.wall = Some(renderer.add_mesh(&yard::wall_mesh()));
         self.finish = Some(renderer.add_mesh(&yard::finish_mesh()));
+        self.wire_mesh = Some(renderer.add_mesh(&wires::mesh()));
         renderer.set_scene_bounds(Aabb::from_center_size(
             Vec3::ZERO,
             glam::vec3(yard::WIDE, 24.0, yard::DEEP),
@@ -195,6 +204,9 @@ impl Game for SweepGame {
             self.you.turn(crate::walker::TURN * dt);
         }
 
+        // where the step began, because a wire is crossed between two frames
+        // rather than stood on at either end of one
+        let was = self.you.position;
         self.you.walk(self.wish(), dt, &self.solid);
 
         // the beams take the time and nothing else: they sweep the same way
@@ -204,7 +216,14 @@ impl Game for SweepGame {
         }
 
         if !self.across {
-            if self.meter.update(self.lit(), dt) {
+            // a wire is not a meter. A beam gives you a moment; a wire gives
+            // you none, which is what makes it a different question. The meter
+            // still runs on a frame a wire catches you, or standing on one in
+            // a beam would leave it half full when you reappear.
+            let tripped = wires::tripped(&self.wires, was, self.you.position);
+            let filled = self.meter.update(self.lit(), dt);
+
+            if tripped || filled {
                 self.send_back();
             }
             self.across = yard::is_across(self.you.position);
@@ -245,9 +264,13 @@ impl Game for SweepGame {
     }
 
     fn draw(&mut self, scene: &mut Scene, camera: &mut Camera) {
-        let (Some(ground), Some(crates), Some(wall), Some(finish)) =
-            (self.ground, self.crates, self.wall, self.finish)
-        else {
+        let (Some(ground), Some(crates), Some(wall), Some(finish), Some(wire)) = (
+            self.ground,
+            self.crates,
+            self.wall,
+            self.finish,
+            self.wire_mesh,
+        ) else {
             return;
         };
 
@@ -259,6 +282,7 @@ impl Game for SweepGame {
         scene.push_colored(crates, &Transform::default(), CRATES);
         scene.push_colored(wall, &Transform::default(), WALL);
         scene.push_colored(finish, &Transform::default(), FINISH);
+        scene.push_colored(wire, &Transform::default(), WIRE);
 
         for beam in self.lights() {
             scene.push_spot(beam);
@@ -349,6 +373,18 @@ mod tests {
         game.send_back();
 
         assert_eq!(game.you.yaw, 1.2);
+    }
+
+    #[test]
+    fn a_wire_sends_you_back_with_no_meter_to_fill() {
+        // a beam gives you a moment and a wire gives you none
+        let mut game = SweepGame::new();
+        let under = game.wires[0].bounds.center();
+        let on_it = glam::vec3(under.x, 0.0, under.z);
+
+        game.you.position = on_it;
+        assert!(wires::tripped(&game.wires, on_it, on_it));
+        assert_eq!(game.meter.filled(), 0.0, "it took a meter to catch you");
     }
 
     #[test]

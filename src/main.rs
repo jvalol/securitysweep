@@ -5,6 +5,7 @@ mod caught;
 mod seen;
 mod sweep_game;
 mod walker;
+mod wires;
 mod yard;
 
 use blitzkit::start;

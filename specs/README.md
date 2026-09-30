@@ -8,4 +8,5 @@ not a priority, and it never changes once a spec exists.
 
 | Spec | Covers |
 | --- | --- |
-| [0001](0001-crossing-the-yard.md) | Four beams, an open yard, and being seen (draft) |
+| [0001](0001-crossing-the-yard.md) | Four beams, an open yard, and being seen (implemented) |
+| [0002](0002-tripwires.md) | Lines you must not cross, which ask routing rather than timing (implemented) |

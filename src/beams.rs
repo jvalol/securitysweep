@@ -14,8 +14,8 @@ pub const BEAMS: usize = MAX_SPOT_LIGHTS;
 /// How high they hang, how far they reach, and how wide the cone is.
 pub const HANGS: f32 = 9.0;
 pub const RANGE: f32 = 26.0;
-pub const INNER: f32 = 0.26;
-pub const OUTER: f32 = 0.42;
+pub const INNER: f32 = 0.20;
+pub const OUTER: f32 = 0.34;
 
 pub const COLOR: Vec3 = vec3(1.0, 0.97, 0.88);
 pub const INTENSITY: f32 = 2.4;

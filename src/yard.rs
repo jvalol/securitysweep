@@ -194,7 +194,7 @@ mod tests {
         // being bad at it, so this walks it: a grid of standing places, a clock
         // for the beams, and a search over both at once. Moving a cell a tick
         // is slower than the player walks, so anything this finds, they can do.
-        use crate::{beams, seen};
+        use crate::{beams, seen, wires};
         use std::collections::VecDeque;
 
         const STEP: f32 = 2.0;
@@ -204,6 +204,7 @@ mod tests {
         let across = (WIDE / STEP) as usize;
         let down = (DEEP / STEP) as usize;
         let cover = solid();
+        let wires = wires::all();
 
         let place = |x: usize, z: usize| {
             vec3(
@@ -237,23 +238,35 @@ mod tests {
             }
         }
 
-        // and the beams have to actually threaten, or a way across proves
-        // nothing: a yard nothing ever lights is crossable by standing up
+        // and the yard has to actually threaten, or a way across proves
+        // nothing: a yard nothing ever lights is crossable by standing up.
+        //
+        // Beams and wires together, because the two share the pressure. Adding
+        // wires and narrowing the beams to fit them must not quietly buy an
+        // easy yard, and counting only one of them would let it.
         let standing_room: usize = standable.iter().filter(|room| **room).count();
-        let lit = (0..TICKS)
+        let on_a_wire = |cell: usize| {
+            let mid = place(cell % across, cell / across);
+            wires
+                .iter()
+                .any(|wire| wire.touching(vec3(mid.x, 0.0, mid.z)))
+        };
+        let threatened = (0..TICKS)
             .map(|tick| {
                 (0..across * down)
-                    .filter(|cell| standable[*cell] && !dark[tick * across * down + cell])
+                    .filter(|cell| {
+                        standable[*cell] && (!dark[tick * across * down + cell] || on_a_wire(*cell))
+                    })
                     .count()
             })
             .max()
             .unwrap_or(0);
 
         assert!(
-            lit * 5 > standing_room,
-            "at their worst the beams cover {} of {} standing places, which is \
+            threatened * 5 > standing_room,
+            "at its worst the yard threatens {} of {} standing places, which is \
              not a yard worth crossing",
-            lit,
+            threatened,
             standing_room
         );
 
@@ -265,14 +278,20 @@ mod tests {
         };
 
         assert!(dark[from], "you are caught where you start");
+        assert!(
+            !wires.iter().any(|wire| wire.touching(start())),
+            "you start on a wire"
+        );
 
         // a cell a tick, or standing still
         let mut been = vec![false; across * down * TICKS];
         let mut edge = VecDeque::from([(from, 0usize)]);
         been[from] = true;
         let mut made_it = false;
+        let mut furthest = f32::INFINITY;
 
         while let Some((cell, tick)) = edge.pop_front() {
+            furthest = furthest.min(place(cell % across, cell / across).z);
             if place(cell % across, cell / across).z <= -(DEEP * 0.5 - END) {
                 made_it = true;
                 break;
@@ -299,6 +318,18 @@ mod tests {
             for (nx, nz) in go {
                 let next = nz * across + nx;
                 let at = (tick + 1) * across * down + next;
+
+                // spec 0002's wires cut the yard, so a step that crosses one is
+                // not a step. Without this the search proves a route through
+                // them that nobody can walk.
+                let feet = |cell: usize| {
+                    let mid = place(cell % across, cell / across);
+                    vec3(mid.x, 0.0, mid.z)
+                };
+                if wires::tripped(&wires, feet(cell), feet(next)) {
+                    continue;
+                }
+
                 if dark[at] && !been[at] {
                     been[at] = true;
                     edge.push_back((next, tick + 1));
@@ -308,9 +339,40 @@ mod tests {
 
         assert!(
             made_it,
-            "no way across the yard in {} seconds of the beams",
-            TICKS as f32 * TICK
+            "no way across the yard in {} seconds of the beams: got to z {:.0}, \
+             and the line is at z {:.0}",
+            TICKS as f32 * TICK,
+            furthest,
+            -(DEEP * 0.5 - END)
         );
+    }
+
+    #[test]
+    fn the_wires_leave_a_way_past_each_of_them() {
+        // a wire with no way round it is a wall, and a wall is this spec's job
+        // rather than spec 0002's
+        use crate::wires;
+
+        const STEP: f32 = 1.0;
+        let cover = solid();
+
+        for wire in wires::all() {
+            let past = (0..(WIDE / STEP) as usize)
+                .map(|x| -WIDE * 0.5 + STEP * (x as f32 + 0.5))
+                .filter(|x| {
+                    let here = vec3(*x, 0.0, wire.bounds.center().z);
+                    let you = Aabb::from_center_size(here + Vec3::Y, vec3(0.9, 1.8, 0.9));
+
+                    !wire.touching(here) && !cover.iter().any(|box_| box_.intersects(&you))
+                })
+                .count();
+
+            assert!(
+                past > 0,
+                "a wire at {:?} has no way past",
+                wire.bounds.center()
+            );
+        }
     }
 
     #[test]
