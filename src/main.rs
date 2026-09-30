@@ -1,5 +1,15 @@
 //! An open yard, four lights sweeping it, and the far side. See `specs/`.
 
+mod beams;
+mod caught;
+mod seen;
+mod sweep_game;
+mod walker;
+mod yard;
+
+use blitzkit::start;
+use sweep_game::SweepGame;
+
 fn main() {
-    println!("securitysweep: a spec so far. See specs/0001-crossing-the-yard.md");
+    start("securitysweep", Box::new(SweepGame::new()));
 }

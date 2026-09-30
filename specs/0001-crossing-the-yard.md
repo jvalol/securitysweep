@@ -1,6 +1,6 @@
 # 0001 Crossing the yard
 
-**Status:** draft
+**Status:** implemented
 **Date:** 2026-09-29
 
 ## Goal
@@ -46,6 +46,14 @@ a test walks the yard and proves a route exists with the beams where they are.
 A yard you cannot cross is the one bug a player cannot tell from being bad at
 it.
 
+**The far side is a line you can see.** It glows, because the yard is dark and
+a finish you have to be told about is not one you can aim at. The line drawn and
+the line the rule counts are the same line.
+
+**The yard is drawn in pieces.** One mesh takes one colour, and the floor, the
+crates standing on it and the wall round it in a single grey is a yard where
+nothing reads as anything.
+
 **Nothing chases you.** The lights are the only opposition, and they do not
 react. They sweep the same way whether you are there or not, so learning them is
 the game.
@@ -66,7 +74,14 @@ the game.
 - Full sends you back to the near side. — `caught::tests::full_sends_you_back`
 - It never goes below empty or above full. — `caught::tests::it_stays_between_empty_and_full`
 - Cover stops you walking as well as it stops the light. — `yard::tests::cover_is_solid_both_ways`
+- A crate stops you, and you slide along it. — `walker::tests::a_crate_stops_you`
+- You walk at least as fast as the crossing search assumes. — `walker::tests::you_walk_slower_than_the_search_assumes`
+- Being caught keeps you facing the same way. — `sweep_game::tests::being_caught_keeps_you_facing_the_same_way`
+- Being caught empties the meter. — `caught::tests::being_caught_empties_it`
 - There is a way across, with the beams where they are. — `yard::tests::there_is_a_way_across`
+- The line you see and the line that counts are the same line. — `yard::tests::the_finish_is_where_crossing_counts`
+- It runs the width of the yard. — `yard::tests::the_finish_runs_the_width_of_the_yard`
+- The yard is drawn in pieces, so it can be more than one colour. — `yard::tests::the_yard_is_drawn_in_pieces`
 
 ### Verified by hand
 
