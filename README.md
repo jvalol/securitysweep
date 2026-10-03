@@ -18,3 +18,7 @@ a window and what the tests assert is what the screen draws.
 ```
 cargo run
 ```
+
+---
+
+I asked AI to draft this for me. I've edited it. Any surviving AI smells are my oversight.
