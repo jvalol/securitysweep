@@ -38,9 +38,8 @@ const WIRE: glam::Vec4 = vec4(7.0, 1.2, 1.4, 1.0);
 /// The red over everything when you are caught.
 ///
 /// Near full brightness, because alpha blending over a dark yard gives you the
-/// colour times the alpha and nothing else: a dark red at half alpha came out
-/// at a tenth of full and read as a block sitting in the corner rather than as
-/// a flash.
+/// colour times the alpha and nothing else. A dark red at half alpha came out
+/// at a tenth of full and read as a block in the corner rather than a flash.
 const FLASH: Vec3 = glam::vec3(1.0, 0.13, 0.12);
 
 /// How much light there is with nothing lighting it. Low: the beams are the
