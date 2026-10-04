@@ -317,6 +317,16 @@ impl Game for SweepGame {
             scene.push_spot(beam);
         }
 
+        // from above for the camera, per `refresh-screenshots` in the project
+        // above. From inside the yard you see a crate and a beam; what this
+        // game is, is the whole yard at once, with the wires strung across it
+        // and the light falling in two places.
+        if crate::staged() {
+            camera.position = glam::vec3(0.0, yard::DEEP * 0.95, yard::DEEP * 0.42);
+            camera.target = glam::vec3(0.0, 0.0, -yard::DEEP * 0.05);
+            return;
+        }
+
         camera.position = self.you.eye();
         camera.target = camera.position + self.you.facing();
     }
