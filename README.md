@@ -2,7 +2,7 @@
 
 An open yard with four spotlights sweeping across it
 
-![The yard from above: crates scattered across it, two red tripwires strung the whole way over, a green line at the far end, and two pools of light where the beams fall](media/screenshot.png)
+![The yard from above: crates scattered across it, two red tripwires reaching two thirds of the way over, a green line at the far end, and four pools of light where the beams fall](media/screenshot.png)
 
 Walk across. Being lit fills a meter, the dark empties it slower than it fills,
 and full puts you back at the near side. The crates stop the beams and stop you,
