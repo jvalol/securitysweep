@@ -6,6 +6,7 @@ use blitzkit::geometry::quad::Quad;
 use blitzkit::geometry::Geometry;
 use blitzkit::keyboard::{KeyboardInput, KeyboardKey, KeyboardKeyState};
 use blitzkit::mesh::Transform;
+use blitzkit::notice;
 use blitzkit::renderer::render_text::{RenderText, TextRenderer};
 use blitzkit::renderer::scene::{MeshId, Scene};
 use blitzkit::renderer::Renderer;
@@ -252,8 +253,14 @@ impl Game for SweepGame {
             blitzkit::renderer::render_text::UNBOUNDED_F32,
         );
         self.controls.bounds = wide.into();
-        text_renderer.render_texts.push(self.readout.clone());
-        text_renderer.render_texts.push(self.controls.clone());
+
+        // the readout goes on a panel, so it reads over the yard rather than
+        // into it. See blitzkit's spec 0038.
+        let lines = vec![self.readout.clone(), self.controls.clone()];
+        for quad in notice::framing_all(&lines).iter().flatten() {
+            geometry.push_quad(quad);
+        }
+        text_renderer.render_texts.extend(lines);
 
         // the red goes over the yard but under the meter: it is there to say
         // what happened, not to take away the thing you were reading
