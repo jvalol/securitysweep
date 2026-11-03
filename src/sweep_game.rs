@@ -76,11 +76,20 @@ pub struct SweepGame {
     height: f32,
     readout: RenderText,
     controls: RenderText,
+    /// Whether this run is only here to be photographed, which is what puts
+    /// the camera over the yard rather than behind your eyes. See
+    /// `refresh-screenshots` in the project above.
+    staged: bool,
 }
 
 impl SweepGame {
-    pub fn new() -> Self {
+    /// `staged` rather than a call to `crate::staged()` where the camera is
+    /// chosen, so that a picture test can ask for the photographed view
+    /// without putting `--screenshot` in its own arguments. `main` passes
+    /// what the arguments say.
+    pub fn new(staged: bool) -> Self {
         Self {
+            staged,
             you: Walker::at(yard::start()),
             beams: beams::all(),
             solid: yard::solid(),
@@ -159,7 +168,7 @@ impl SweepGame {
 
 impl Default for SweepGame {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
@@ -328,7 +337,7 @@ impl Game for SweepGame {
         // above. From inside the yard you see a crate and a beam; what this
         // game is, is the whole yard at once, with the wires strung across it
         // and the light falling in two places.
-        if crate::staged() {
+        if self.staged {
             camera.position = glam::vec3(0.0, yard::DEEP * 0.95, yard::DEEP * 0.42);
             camera.target = glam::vec3(0.0, 0.0, -yard::DEEP * 0.05);
             return;
@@ -392,9 +401,48 @@ impl Game for SweepGame {
 mod tests {
     use super::*;
 
+    /// How big the picture is: the engine's own size, said once there and
+    /// read here, per its spec 0062.
+    const WIDE: u32 = blitzkit::picture::SIZE.0;
+    const TALL: u32 = blitzkit::picture::SIZE.1;
+
+    /// The yard from above, held against a picture of it. Spec 0003.
+    ///
+    /// **The staging was already here.** `--screenshot` puts the camera
+    /// over the yard looking down, because from inside it you see a crate
+    /// and a beam, and what this game is, is the whole yard at once with
+    /// the wires strung across it and the light falling in two places.
+    /// That is the frame `refresh-screenshots` photographs, so this holds
+    /// the picture that is already on show.
+    ///
+    /// One `update` at no time at all, so the beams are placed and the
+    /// lights are worked out, with nothing sweeping between that and the
+    /// shutter.
+    #[test]
+    fn the_yard_from_above_looks_right() {
+        let reference =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/pictures/the-yard.png");
+
+        blitzkit::picture::drawn_looks_right(&reference, (WIDE, TALL), |renderer| {
+            let mut game = SweepGame::new(true);
+            let mut geometry = Geometry::new();
+            let mut text = TextRenderer::new();
+            let sound = SoundSystem::new();
+            let mut scene = Scene::new();
+            let mut camera = Camera::new();
+
+            game.load(renderer);
+            game.initialize(&mut geometry, &mut text, &sound, (WIDE as f32, TALL as f32));
+            game.update(0.0, &mut geometry, &mut text, &sound);
+            game.draw(&mut scene, &mut camera);
+
+            (scene, camera)
+        });
+    }
+
     #[test]
     fn you_start_at_the_near_side() {
-        let game = SweepGame::new();
+        let game = SweepGame::new(false);
 
         assert_eq!(game.you.position, yard::start());
         assert!(!game.across);
@@ -402,7 +450,7 @@ mod tests {
 
     #[test]
     fn being_caught_puts_you_back() {
-        let mut game = SweepGame::new();
+        let mut game = SweepGame::new(false);
         game.you.position = Vec3::ZERO;
 
         game.send_back();
@@ -413,7 +461,7 @@ mod tests {
     #[test]
     fn being_caught_keeps_you_facing_the_same_way() {
         // turning you round as well would be a second punishment for one mistake
-        let mut game = SweepGame::new();
+        let mut game = SweepGame::new(false);
         game.you.yaw = 1.2;
 
         game.send_back();
@@ -424,7 +472,7 @@ mod tests {
     #[test]
     fn a_wire_sends_you_back_with_no_meter_to_fill() {
         // a beam gives you a moment and a wire gives you none
-        let mut game = SweepGame::new();
+        let mut game = SweepGame::new(false);
         let under = game.wires[0].bounds.center();
         let on_it = glam::vec3(under.x, 0.0, under.z);
 
@@ -435,7 +483,7 @@ mod tests {
 
     #[test]
     fn there_is_one_light_per_beam() {
-        let game = SweepGame::new();
+        let game = SweepGame::new(false);
 
         assert_eq!(game.lights().len(), game.beams.len());
         assert!(game.lights().len() <= beams::BEAMS);

@@ -18,5 +18,5 @@ pub fn staged() -> bool {
 }
 
 fn main() {
-    start("securitysweep", Box::new(SweepGame::new()));
+    start("securitysweep", Box::new(SweepGame::new(staged())));
 }
